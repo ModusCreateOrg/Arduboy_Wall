@@ -215,12 +215,12 @@ void Arduboy2Core::LCDCommandMode() {
 // Initialize the SPI interface for the display
 void Arduboy2Core::bootSPI() {
   // master, mode 0, MSB first, CPU clock / 2 (8MHz)
-  // SPCR = _BV(SPE) | _BV(MSTR);
-  // SPSR = _BV(SPI2X);
+  SPCR = _BV(SPE) | _BV(MSTR);
+  SPSR = _BV(SPI2X);
 
   // For 4 MHZ:
-  SPCR = _BV(SPE) | _BV(MSTR);
-  SPSR = 0;
+  // SPCR = _BV(SPE) | _BV(MSTR);
+  // SPSR = 0;
 
   // For 2MHz:
   // SPCR = _BV(SPE) | _BV(MSTR) | _BV(SPR0);

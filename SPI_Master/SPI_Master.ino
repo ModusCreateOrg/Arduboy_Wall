@@ -34,8 +34,8 @@ void setup() {
   arduboy.boot();
   arduboy.audio.on();
 
-  arduboy.setFrameRate(1);
-  pinMode(LED_BUILTIN, OUTPUT);
+  arduboy.setFrameRate(30);
+  // pinMode(LED_BUILTIN, OUTPUT);
 
   sound.volumeMode(VOLUME_ALWAYS_NORMAL);
   for (byte i = 0; i < numBalls - 1; i++) {
@@ -44,49 +44,48 @@ void setup() {
     xDirection[i] = random(1, 2);
     yDirection[i] = random(1, 2);
   }
+  sound.tone(1000, 100); 
 }
 
 
 uint16_t val = 0;
 
-#define bufferLen 32 
+#define bufferLen 8 
 void writeSPI() {
-  digitalWrite(SS, LOW);    // SS is pin 10
-  // SPI_writeAnything(arduboy.getBuffer());
-    // SPI_writeAnything(++val);
-
-  int i = 0;
-//
-//  Serial.print("sBuffer[");
-//  Serial.print(i); 
-//
-//  Serial.print("] :: ");
-//  Serial.println(arduboy.sBuffer[i]);
-
-  for (; i < bufferLen; i++) {
-
-    // Serial.print("sBuffer[");
-    // Serial.print(i); 
-
-    // Serial.print("] :: ");
-    // Serial.println(arduboy.sBuffer[i]);
-    // Serial.flush();    
-    arduboy.SPItransfer(arduboy.sBuffer[i]);
-    // arduboy.delayShort(1);
+  // digitalWrite(SS, LOW);    // SS is pin 10
+  String strOut;
+  for (byte i = 0; i < bufferLen; i++) {
+    strOut += (String(arduboy.sBuffer[i], DEC) + ", ");
   }
 
-  digitalWrite(SS, HIGH);
+  Serial.println("Sent data:");
+  Serial.println(strOut);
 
-  Serial.println("--------------------------------------");
-  Serial.print("Wrote "); Serial.print(bufferLen); Serial.println(" bytes");
+  for (int i = 0; i < bufferLen; i++) {
+    arduboy.SPItransfer(arduboy.sBuffer[i]);
+    arduboy.delayShort(1);
+  }
+
+  // digitalWrite(SS, HIGH);
+
+  // Serial.println("--------------------------------------");
+  // Serial.print("Wrote "); Serial.print(bufferLen); Serial.println(" bytes");
     // delay(250);  // for testing
+
 }
 
 unsigned long counter = 0;
 byte ctr = 1;
+
 void loop() {
-  if (!(arduboy.nextFrame()))
+  if (! (arduboy.nextFrame()) )
     return;
+
+  counter++;
+
+//  if (counter % 30 != 0){
+//    return;
+//  }
 
   arduboy.clear();
 
@@ -94,6 +93,7 @@ void loop() {
 
   if (iteration < 0) {
     iteration = numBalls;
+
   }
 
   tailX[iteration] = prevX;
@@ -107,7 +107,7 @@ void loop() {
   randEnd = 10,
   xBoundary = 7,
   yBoundary = 7,
-  toneDuration = 50;
+  toneDuration = 10;
 
   static const float
   negVelocity = -.5,
@@ -116,23 +116,23 @@ void loop() {
   //  delay(100);
   if (xTail > xBoundary) {
     xTailDirection = negVelocity + ((random(randStart, randEnd) * .1) * -1);
-   sound.tone(250, toneDuration);
+//   sound.tone(250, toneDuration);
     xTail = xBoundary;
   }
   else if (xTail < 0) {
     xTailDirection =  posVelocity + (random(randStart, randEnd) * .1);
-   sound.tone(300, toneDuration);
+//   sound.tone(300, toneDuration);
     xTail = 0;
   }
 
   if (yTail > yBoundary) {
     yTailDirection = negVelocity + ((random(randStart, randEnd) * .1) * -1);
-   sound.tone(150, toneDuration);
+//   sound.tone(150, toneDuration);
     yTail = yBoundary;
   }
   else if (yTail < 0) {
     yTailDirection =  posVelocity + (random(randStart, randEnd) * .1);
-   sound.tone(200, toneDuration);
+//   sound.tone(200, toneDuration);
     yTail = 0;
   }
 
@@ -141,14 +141,24 @@ void loop() {
 
 
  for (byte i = 0; i < numBalls; i++) {
-//   arduboy.drawPixel(tailX[i], tailY[i], 1);
+   arduboy.drawPixel(tailX[i], tailY[i], 1);
 //   arduboy.drawPixel(0,ctr++,1);
  }
   ctr++;
   if (ctr > 7) {
     ctr = 0;
+//    sound.tone(1000, toneDuration);
+//    delay(50);
   }
-   arduboy.drawPixel(0,ctr, 1);
+
+//  arduboy.drawPixel(0,ctr, 1);
+//  arduboy.drawPixel(1,ctr+1, 1);
+//  arduboy.drawPixel(2,ctr+2, 1);
+//  arduboy.drawPixel(3,ctr+3, 1);
+//  arduboy.drawPixel(4,ctr+4, 1);
+//  sound.tone(200, toneDuration);
+
+  Serial.flush();
   
 //  arduboy.setCursor(30,30);
 //  arduboy.print(counter++);
@@ -156,9 +166,10 @@ void loop() {
 //  arduboy.print(ctr);
 //  arduboy.setCursor(30,50);
 //  arduboy.print(arduboy.sBuffer[0]);
-  // arduboy.display();
- writeSPI();
+   arduboy.display();
+// writeSPI();
 
+// Serial.print("Frame "); Serial.print(counter); Serial.println(" --  ");
 
- // delay(4000);
+  delay(100);
 }

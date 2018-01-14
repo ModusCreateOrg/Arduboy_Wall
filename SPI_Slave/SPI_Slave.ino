@@ -1,7 +1,7 @@
 #include <SPI.h>
 
 #define bufferLen 32
-uint8_t sBuffer[bufferLen];
+volatile uint8_t sBuffer[bufferLen];
 
 
 /*
@@ -19,15 +19,6 @@ uint8_t sBuffer[bufferLen];
 LedControl ledControl = LedControl(35, 37, 36 , NUM_DEVICES);
 
 volatile bool haveData = false;
-
-template <typename T> unsigned int SPI_readAnything(T& value) {
-  byte * p = (byte*) &value;
-  unsigned int i;
-  for (i = 0; i < sizeof(value); i++) {
-    *p++ = SPI.transfer(0);
-  }
-  return i;
-}  // end of SPI_readAnything
 
 unsigned int bufferIndex;
 
@@ -54,16 +45,17 @@ unsigned int SPI_readScreenBuffer() {
 
 
 byte x = 0;
+unsigned long ctr = 0;
 void setup () {
   while (!Serial);
-  Serial.begin (115200);   // debugging
-  //    Serial.begin(250000);
+//  Serial.begin (115200);   // debugging
+  Serial.begin(500000);
   // have to send on master in, *slave out*
-  pinMode(MISO, OUTPUT);
+//  pinMode(MISO, OUTPUT);
   // turn on SPI in slave mode
   SPCR |= _BV(SPE);
-  //  SPCR = _BV(SPE) | _BV(MSTR);
-  //  SPSR = _BV(SPI2X);
+//  SPSR = 0;
+
 
 
   // now turn on interrupts
@@ -86,17 +78,18 @@ void setup () {
 void loop () {
   //  return;
   if (haveData) {
+    Serial.print(++ctr);
     Serial.println("--------------------------------------");
-    for (byte i = 0; i < bufferLen; i++) {
-      //      ledControl.setRow(0, i, sBuffer[i]);
-
-      Serial.print("sBuffer[");
-      Serial.print(i);
-      Serial.print("] :: ");
-      Serial.println(sBuffer[i]);
-
-    }
-    Serial.flush();
+//    for (byte i = 0; i < bufferLen; i++) {
+//      //      ledControl.setRow(0, i, sBuffer[i]);
+//
+//      Serial.print("sBuffer[");
+//      Serial.print(i);
+//      Serial.print("] :: ");
+//      Serial.println(sBuffer[i]);
+//
+//    }
+//    Serial.flush();
     haveData = false;
 
   }
