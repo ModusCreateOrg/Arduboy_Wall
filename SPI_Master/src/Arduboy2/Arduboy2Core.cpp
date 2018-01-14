@@ -197,10 +197,10 @@ void Arduboy2Core::bootOLED() {
 
   // run our customized boot-up command sequence against the
   // OLED to initialize it properly for Arduboy
-  // LCDCommandMode();
-  // for (uint8_t i = 0; i < sizeof(lcdBootProgram); i++) {
-  //   SPItransfer(pgm_read_byte(lcdBootProgram + i));
-  // }
+  LCDCommandMode();
+  for (uint8_t i = 0; i < sizeof(lcdBootProgram); i++) {
+    SPItransfer(pgm_read_byte(lcdBootProgram + i));
+  }
   LCDDataMode();
 }
 
