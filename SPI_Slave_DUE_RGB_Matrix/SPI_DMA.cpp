@@ -4,20 +4,15 @@
 //   http://forum.arduino.cc/index.php/topic,157203.0.html
 // core hardware/arduino/sam/system/libsam/source/spi.c
 // TODO:  C class, interrupt, FIFO/16-bit, DMA?
-
+#include "SPI_DMA.h"
+#include <Arduino.h>
 #include <SPI.h>
-#include "LedControl.h"
 #define NUM_DEVICES 2
-//LedControl(12,11,10,1);
-//LedControll(DataIn, CLK, LOAD)
-LedControl ledControl = LedControl(52, 48, 50 , NUM_DEVICES);
 
 // assumes MSB
 static BitOrder bitOrder = MSBFIRST;
 
-#define SPI_BUFF_SIZE 1024
-uint8_t receive_buffer[SPI_BUFF_SIZE];
-uint8_t transmit_buffer[SPI_BUFF_SIZE];
+
 //uint8_t transmit_buffer2[SPI_BUFF_SIZE];
 
 /** Use SAM3X DMAC if nonzero */
@@ -193,7 +188,7 @@ static void spiSend(const uint8_t* buf, size_t len) {
 
 //------------------------------------------------------------------------------
 /** SPI receive multiple bytes */
-static uint8_t spiSendReceive(uint8_t* outBuf, uint8_t* inBuf, size_t len) {
+uint8_t spiSendReceive(uint8_t* outBuf, uint8_t* inBuf, size_t len) {
   Spi* pSpi = SPI0;
   int rtn = 0;
 
@@ -228,62 +223,19 @@ void prregs() {
 }
 
 #define SS 10
-void setup() {
-//  Serial.begin(115200);
-//  while (!Serial);
-//  Serial.println("Starting setup");
+void setupSlave() {
+
 
   slaveBegin(SS);
   prregs();  // debug
 
-  for (int iIdx = 0; iIdx < SPI_BUFF_SIZE; iIdx++) {
-    transmit_buffer[iIdx] = 0;
-//    transmit_buffer2[iIdx] = (uint8_t) (98 + iIdx);
-  }
 
-  //we have to init all devices in a loop
-  for (uint8_t address = 0; address < NUM_DEVICES; address++) {
-    /*The MAX72XX is in power-saving mode on startup*/
-    ledControl.shutdown(address, false);
-    /* Set the brightness to a medium values */
-    ledControl.setIntensity(address, 8);
-    /* and clear the display */
-    ledControl.clearDisplay(address);
-  }
-  
 }
 
 byte x = 0;
-void loop() {
+void loopz() {
 //  Serial.println("Waiting");
-
-  
-  spiSendReceive(transmit_buffer, receive_buffer, SPI_BUFF_SIZE);
-  ledControl.clearDisplay(1);
-  ledControl.clearDisplay(0);
-  String strIn;
-  for (int iIdx = 0; iIdx < 16; iIdx++) {
-    strIn += (String(receive_buffer[iIdx], DEC) + ", ");
-    if (iIdx < 8) {
-       ledControl.setRow(0, iIdx, (uint8_t)receive_buffer[iIdx]);
-    }
-    else {
-       ledControl.setRow(1, iIdx - 8, (uint8_t)receive_buffer[iIdx]);
-    }
-  }
-//  delay(1);
-
-//  Serial.println("Received data:");
-//  Serial.println(strIn);
-
-
-//  
-//  x++;
-//  if (x > 7) {
-//    x = 0;
-//  }
-//  ledControl.setRow(1, x, 255);  
-
+//  spiSendReceive(transmit_buffer, receive_buffer, SPI_BUFF_SIZE);
 
 
 }

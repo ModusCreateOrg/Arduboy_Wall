@@ -1,10 +1,9 @@
-#include "src/Arduboy2/Arduboy2.h"
+#include <Arduboy2.h>
 #include <ArduboyTones.h>
 // make an instance of arduboy used for many functions
 Arduboy2 arduboy;
 ArduboyTones sound(arduboy.audio.enabled);
 
-#include <SPI.h>
 #include "Types.h"
 
 #define numBalls 5
@@ -33,8 +32,8 @@ void setup() {
   // initiate arduboy instance
   arduboy.boot();
   arduboy.audio.on();
-
-  arduboy.setFrameRate(30);
+  arduboy.flashlight();
+  arduboy.setFrameRate(1);
   // pinMode(LED_BUILTIN, OUTPUT);
 
   sound.volumeMode(VOLUME_ALWAYS_NORMAL);
@@ -51,27 +50,27 @@ void setup() {
 uint16_t val = 0;
 
 #define bufferLen 8 
-void writeSPI() {
+
+void printBuffer() {
   // digitalWrite(SS, LOW);    // SS is pin 10
-  String strOut;
-  for (byte i = 0; i < bufferLen; i++) {
-    strOut += (String(arduboy.sBuffer[i], DEC) + ", ");
-  }
+   // String strOut;
+   // for (byte i = 0; i < bufferLen; i++) {
+   //   strOut += (String(arduboy.sBuffer[i], DEC) + ", ");
+   // }
 
-  Serial.println("Sent data:");
-  Serial.println(strOut);
+   // Serial.println("Sent data:");
+   // Serial.println(strOut);
 
-  for (int i = 0; i < bufferLen; i++) {
-    arduboy.SPItransfer(arduboy.sBuffer[i]);
-    arduboy.delayShort(1);
-  }
+  // for (int i = 0; i < bufferLen; i++) {
+  //   arduboy.SPItransfer(arduboy.sBuffer[i]);
+  //   arduboy.delayShort(1);
+  // }
 
   // digitalWrite(SS, HIGH);
 
   // Serial.println("--------------------------------------");
   // Serial.print("Wrote "); Serial.print(bufferLen); Serial.println(" bytes");
     // delay(250);  // for testing
-
 }
 
 unsigned long counter = 0;
@@ -83,9 +82,9 @@ void loop() {
 
   counter++;
 
-//  if (counter % 30 != 0){
-//    return;
-//  }
+  if (counter % 5 != 0){
+    return;
+  }
 
   arduboy.clear();
 
@@ -141,10 +140,12 @@ void loop() {
 
 
  for (byte i = 0; i < numBalls; i++) {
-   arduboy.drawPixel(tailX[i], tailY[i], 1);
+//   arduboy.drawPixel(tailX[i], tailY[i], 1);
 //   arduboy.drawPixel(0,ctr++,1);
  }
-  ctr++;
+ arduboy.drawPixel(0,ctr++,1);
+ 
+//  ctr++;
   if (ctr > 7) {
     ctr = 0;
 //    sound.tone(1000, toneDuration);
@@ -167,7 +168,9 @@ void loop() {
 //  arduboy.setCursor(30,50);
 //  arduboy.print(arduboy.sBuffer[0]);
    arduboy.display();
-// writeSPI();
+   sound.tone(1000, toneDuration);
+
+   printBuffer();
 
 // Serial.print("Frame "); Serial.print(counter); Serial.println(" --  ");
 
