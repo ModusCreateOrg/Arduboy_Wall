@@ -17,23 +17,6 @@
 #define MATRIX_32_32 1
 
 // fixed pin structure for now
-//#define G1    23
-//#define G2    27
-//#define BPIN  31
-//#define DPIN  33 // 32x32 Matrix only
-//#define LAT   35
-//
-//
-//#define R1    22
-//#define B1    24
-//#define R2    26
-//#define B2    28
-//#define APIN  30
-//#define CPIN  32
-//#define CLK   34
-//#define OE    36
-
-
 #define APIN  33
 #define BPIN  34
 #define CPIN  35
@@ -47,6 +30,7 @@
 #define R2    30
 #define G2    28
 #define B2    26
+
 
 #define swap(a, b) { uint16_t t = a; a = b; b = t; }
 
@@ -77,21 +61,23 @@ class RGBmatrixPanelDue {
   void updateDisplay();
   void dumpMatrix(void);
 
-  uint8_t width();
-  uint8_t height();
+  uint16_t width();
+  uint16_t height();
   void startTimer(Tc *tc, uint32_t ch, IRQn_Type IRQ, uint32_t freq);
 
   uint8_t NX, NY, PWMMAX, PWMBITS;
+  uint8_t * getBuffer();
+  uint8_t *matrixbuff;
+  uint32_t NUMBYTES;
+  void getOut(uint8_t secn, uint8_t *buffptr);
 
  private:
 
   uint8_t single_matrix_width, single_matrix_height;
   uint8_t sections;
-  uint8_t WIDTH, HEIGHT;//, PWMMAX, PWMBITS;
-  uint32_t NUMBYTES;
+  uint16_t WIDTH, HEIGHT;//, PWMMAX, PWMBITS;
 
   //uint8_t matrixbuff[NUMBYTES];  // 768 bytes for 16x32
-  uint8_t *matrixbuff;
   //uint8_t matrixbuff[768];
 
   uint8_t cursor_x, cursor_y, textsize;
