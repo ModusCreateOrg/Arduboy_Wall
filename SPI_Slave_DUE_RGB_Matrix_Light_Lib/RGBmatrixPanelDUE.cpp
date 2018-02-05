@@ -10,17 +10,17 @@ uint16_t RGBmatrixPanelDue::height() {return HEIGHT; }
 RGBmatrixPanelDue::RGBmatrixPanelDue(uint8_t matrix_type, uint8_t xpanels, uint8_t ypanels, uint8_t planes) {
   single_matrix_width = 64;
   single_matrix_height = 32;
-  init(xpanels, ypanels, planes);
+  initNew(xpanels, ypanels, planes);
 }
 
-uint16_t *secBuffer;
+uint8_t *sBuffer;
 uint16_t numSecBufferBytes;
 
 RGBmatrixPanelDue::RGBmatrixPanelDue(uint8_t xpanels, uint8_t ypanels, uint8_t planes) {
   // Keep old constructor for backwards compability, assuming 16x32 matrix
   single_matrix_width = 64;
   single_matrix_height = 32;
-  init(xpanels, ypanels, planes);
+  initNew(xpanels, ypanels, planes);
 }
 
 void RGBmatrixPanelDue::initNew(uint8_t xpanels, uint8_t ypanels, uint8_t planes) {
@@ -41,45 +41,18 @@ void RGBmatrixPanelDue::initNew(uint8_t xpanels, uint8_t ypanels, uint8_t planes
   // set all of matrix buff to 0 to begin with
   memset(matrixbuff, 0, NUMBYTES);
 
-  secBuffer = (uint16_t *)malloc(numSecBufferBytes = single_matrix_width * NX * NY);
-  memset(secBuffer, 0, numSecBufferBytes);
+  sBuffer = (uint8_t *)malloc(numSecBufferBytes = (single_matrix_width * NX) * (single_matrix_height * NY) / 8);
+  memset(sBuffer, 0, numSecBufferBytes);
+  // sBuffer[0] = 0b01010101;
+  // sBuffer[2] = 255;
+  // sBuffer[0] = 255;
 
   pwmcounter = 0;
   scansection = 0;
 
   cursor_x = cursor_y = 0;
-  textsize = 1;
-  textcolor = Color333(7,7,7); // white
 }
 
-void RGBmatrixPanelDue::init(uint8_t xpanels, uint8_t ypanels, uint8_t planes) {
-  NX = xpanels;
-  NY = ypanels;
-
-  PWMBITS = planes;
-  PWMMAX = ((1 << PWMBITS) - 1);
-
-  // Save number of sections once because dividing by two is oh so expensive
-  sections = single_matrix_height / 2;
-
-  WIDTH = single_matrix_width * xpanels;
-  HEIGHT = single_matrix_height * ypanels;
-
-  NUMBYTES = (WIDTH * HEIGHT / 2) * planes;
-  matrixbuff = (uint8_t *)malloc(NUMBYTES);
-  // set all of matrix buff to 0 to begin with
-  memset(matrixbuff, 0, NUMBYTES);
-
-  secBuffer = (uint16_t *)malloc(numSecBufferBytes = single_matrix_width * NX * NY);
-  memset(secBuffer, 0, numSecBufferBytes);
-
-  pwmcounter = 0;
-  scansection = 0;
-
-  cursor_x = cursor_y = 0;
-  textsize = 1;
-  textcolor = Color333(7,7,7); // white
-}
 
 void RGBmatrixPanelDue::begin(uint32_t frequency) {
   pinMode(APIN, OUTPUT);
@@ -121,355 +94,44 @@ void RGBmatrixPanelDue::begin(uint32_t frequency) {
   // Serial.flush();
 
   startTimer(TC1, 0, TC3_IRQn, frequency); //TC1 channel 0, the IRQ for that channel and the desired frequency
-
-
-
-}
-
-uint16_t RGBmatrixPanelDue::Color333(uint8_t r, uint8_t g, uint8_t b) {
-  return Color444(r,g,b);
-}
-
-uint16_t RGBmatrixPanelDue::Color444(uint8_t r, uint8_t g, uint8_t b) {
-  uint16_t c;
-  
-  c = r;
-  c <<= 4;
-  c |= g & 0xF;
-  c <<= 4;
-  c |= b & 0xF;
-  return c;
-}
-
-uint16_t RGBmatrixPanelDue::Color888(uint8_t r, uint8_t g, uint8_t b) {
-  uint16_t c;
-  
-  c = (r >> 5);
-  c <<= 4;
-  c |= (g >> 5) & 0xF;
-  c <<= 4;
-  c |= (b >> 5) & 0xF;
-
-  /*
-  Serial.print(r, HEX); Serial.print(", ");
-  Serial.print(g, HEX); Serial.print(", ");
-  Serial.print(b, HEX); Serial.print("->");
-  Serial.println(c, HEX);
-  */
-
-  return c;
 }
 
 
 
-// draw a pixel at the x & y coords with a specific color
-void  RGBmatrixPanelDue::drawPixel(uint8_t xin, uint8_t yin, uint16_t c) {
-  uint16_t index = 0;
-  uint8_t old, x, y;
-  uint8_t red, green, blue, panel, ysave, ii;
-  
-  // extract the 12 bits of color
-  red = (c >> 8) & 0xF;
-  green = (c >> 4) & 0xF;
-  blue = c & 0xF;
-  
-  // change to right coords
-  x = (yin - yin % single_matrix_height) / single_matrix_height * single_matrix_width * NX + xin;
-  y = yin%single_matrix_height;
-
-  // both top and bottom are stored in same byte
-  if (y%single_matrix_height < sections) { 
-    index = y%single_matrix_height;
-  }
-  else { 
-    index = y%single_matrix_height-sections;
-  }
-  // now multiply this y by the # of pixels in a row
-  index *= single_matrix_width*NX*NY;
-  // now, add the x value of the row
-  index += x;
-  // then multiply by 3 bytes per color (12 bit * High and Low = 24 bit = 3 byte)
-  index *= PWMBITS;
 
 
-  old = matrixbuff[index];
-  if (y%single_matrix_height < sections) {
-    // we're going to replace the high nybbles only
-    // red first!
-    matrixbuff[index] &= ~0xF0;  // mask off top 4 bits
-    matrixbuff[index] |= (red << 4);
-    index++;
-    // then green
-    matrixbuff[index] &= ~0xF0;  // mask off top 4 bits
-    matrixbuff[index] |= (green << 4);
-    index++;
-    // finally blue
-    matrixbuff[index] &= ~0xF0;  // mask off top 4 bits
-    matrixbuff[index] |= (blue << 4);
-  } else {
-    // we're going to replace the low nybbles only
-    // red first!
-    matrixbuff[index] &= ~0x0F;  // mask off bottom 4 bits
-    matrixbuff[index] |= red;
-    index++;
-    // then green
-    matrixbuff[index] &= ~0x0F;  // mask off bottom 4 bits
-    matrixbuff[index] |= green;
-    index++;
-    // finally blue
-    matrixbuff[index] &= ~0x0F;  // mask off bottom 4 bits
-    matrixbuff[index] |= blue;
-  }
-}
+#define ZERO_PADDING 16
+void SPrintZeroPadBin(uint16_t number) {
+  char binstr[]="0000000000000000";
+  uint8_t i=0;
+  uint16_t n=number;
 
-
-
-// bresenham's algorithm - thx wikpedia
-void RGBmatrixPanelDue::drawLine(int8_t x0, int8_t y0, int8_t x1, int8_t y1, uint16_t color) {
-
-  uint16_t steep = abs(y1 - y0) > abs(x1 - x0);
-  if (steep) {
-    swap(x0, y0);
-    swap(x1, y1);
+  while(n>0 && i<ZERO_PADDING){
+    binstr[ZERO_PADDING-1-i]=n%2+'0';
+    ++i;
+    n/=2;
   }
 
-  if (x0 > x1) {
-    swap(x0, x1);
-    swap(y0, y1);
-  }
-
-  uint16_t dx, dy;
-  dx = x1 - x0;
-  dy = abs(y1 - y0);
-
-  int16_t err = dx / 2;
-  int16_t ystep;
-
-  if (y0 < y1) {
-    ystep = 1;
-  } else {
-    ystep = -1;}
-
-  for (; x0<=x1; x0++) {
-    if (steep) {
-      drawPixel(y0, x0, color);
-    } else {
-      drawPixel(x0, y0, color);
-    }
-    err -= dy;
-    if (err < 0) {
-      y0 += ystep;
-      err += dx;
-    }
-  }
+ Serial.print(binstr);
 }
-
-// draw a rectangle
-void RGBmatrixPanelDue::drawRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t color) {
-  drawLine(x, y, x+w-1, y, color);
-  drawLine(x, y+h-1, x+w-1, y+h-1, color);
-
-  drawLine(x, y, x, y+h-1, color);
-  drawLine(x+w-1, y, x+w-1, y+h-1, color);
-}
-
-// fill a rectangle
-void RGBmatrixPanelDue::fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t color) {
-  for (uint8_t i=x; i<x+w; i++) {
-    for (uint8_t j=y; j<y+h; j++) {
-      drawPixel(i, j, color);
-    }
-  }
-}
-
-
-
-// draw a circle outline
-void RGBmatrixPanelDue::drawCircle(uint8_t x0, uint8_t y0, uint8_t r, uint16_t color) {
-  int16_t f = 1 - r;
-  int16_t ddF_x = 1;
-  int16_t ddF_y = -2 * r;
-  int16_t x = 0;
-  int16_t y = r;
-
-  drawPixel(x0, y0+r, color);
-  drawPixel(x0, y0-r, color);
-  drawPixel(x0+r, y0, color);
-  drawPixel(x0-r, y0, color);
-
-  while (x<y) {
-    if (f >= 0) {
-      y--;
-      ddF_y += 2;
-      f += ddF_y;
-    }
-    x++;
-    ddF_x += 2;
-    f += ddF_x;
-  
-    drawPixel(x0 + x, y0 + y, color);
-    drawPixel(x0 - x, y0 + y, color);
-    drawPixel(x0 + x, y0 - y, color);
-    drawPixel(x0 - x, y0 - y, color);
-    
-    drawPixel(x0 + y, y0 + x, color);
-    drawPixel(x0 - y, y0 + x, color);
-    drawPixel(x0 + y, y0 - x, color);
-    drawPixel(x0 - y, y0 - x, color);
-    
-  }
-}
-
-
-// fill a circle
-void RGBmatrixPanelDue::fillCircle(uint8_t x0, uint8_t y0, uint8_t r, uint16_t color) {
-  int16_t f = 1 - r;
-  int16_t ddF_x = 1;
-  int16_t ddF_y = -2 * r;
-  int16_t x = 0;
-  int16_t y = r;
-
-  drawLine(x0, y0-r, x0, y0+r+1, color);
-
-  while (x<y) {
-    if (f >= 0) {
-      y--;
-      ddF_y += 2;
-      f += ddF_y;
-    }
-    x++;
-    ddF_x += 2;
-    f += ddF_x;
-  
-    drawLine(x0+x, y0-y, x0+x, y0+y+1, color);
-    drawLine(x0-x, y0-y, x0-x, y0+y+1, color);
-    drawLine(x0+y, y0-x, x0+y, y0+x+1, color);
-    drawLine(x0-y, y0-x, x0-y, y0+x+1, color);
-  }
-}
-
-void RGBmatrixPanelDue::fill(uint16_t c) {
-  for (uint8_t i=0; i<WIDTH; i++) {
-    for (uint8_t j=0; j<HEIGHT; j++) {
-      drawPixel(i, j, c);
-    }
-  }
-}
-
-void RGBmatrixPanelDue::setCursor(uint8_t x, uint8_t y) {
-  cursor_x = x; 
-  cursor_y = y;
-}
-
-void RGBmatrixPanelDue::setTextSize(uint8_t s) {
-  textsize = s;
-}
-
-void RGBmatrixPanelDue::setTextColor(uint16_t c) {
-  textcolor = c;
-}
-
-void RGBmatrixPanelDue::writeAChar(uint8_t c) {
-  if (c == '\n') {
-    cursor_y += textsize*8;
-    cursor_x = 0;
-  } else if (c == '\r') {
-    // skip em
-  } else {
-    drawChar(cursor_x, cursor_y, c, textcolor, textsize);
-    cursor_x += textsize*6;
-  }
-}
-
-
-// draw a character
-void RGBmatrixPanelDue::drawChar(uint8_t x, uint8_t y, char c, uint16_t color, uint8_t size) {
-  for (uint8_t i =0; i<5; i++ ) {
-    //uint8_t line = pgm_read_byte(font+(c*5)+i);
-    uint8_t line = font[c*5+i];
-    for (uint8_t j = 0; j<8; j++) {
-      if (line & 0x1) {
-  if (size == 1) // default size
-    drawPixel(x+i, y+j, color);
-  else {  // big size
-    fillRect(x+i*size, y+j*size, size, size, color);
-  } 
-      }
-      line >>= 1;
-    }
-  }
-}
-
-
-// void RGBmatrixPanelDue::dumpMatrix(void) {
-//   // uint8_t i=0;
-  
-//   // for (int i = 0; i < sizeof(matrixbuff); i++) {
-//   //   if (! (i %32) ) Serial.println();
-//   //   Serial.print("0x");
-//   //   if (matrixbuff[i] < 0xF)  Serial.print('0');
-//   //   Serial.print(matrixbuff[i], BIN);
-//   //   Serial.print(", ");
-//   // } 
-
-//   // uint8_t i=0;
-//   // uint8_t row = 0,
-//   //         col = 0;
-
-//   // for (unsigned long i = 0; i < NUMBYTES; i++) {
-//   //   if (i % (64 * 3) == 0) {
-//   //     Serial.println();
-//   //     Serial.print("r["); Serial.print(row++); Serial.print("]:");
-//   //   }
-
-//   //   if (i == 0 || i % 3 == 0) {
-//   //     Serial.print(col); Serial.print(":");
-//   //     col ++;
-//   //   }
-    
-//   //   Serial.print("0x");
-//   //   if (matrixbuff[i] < 0xF)  {
-//   //     Serial.print('0');
-//   //   }
-
-//   //   Serial.print(matrixbuff[i], DEC);
-//   //   Serial.print(" ");
-
-//   //   if (col >= 64) {
-//   //     col = 0;
-//   //   }    
-//   // }
-
-//   // do {
-//   //   Serial.print("0x");
-//   //   if (matrixbuff[i] < 0xF)  Serial.print('0');
-//   //   Serial.print(matrixbuff[i], DEC);
-//   //   Serial.print(" ");
-//   //   i++;
-//   //   if (! (i % 64) ) Serial.println();
-//   // } while (i != 0);   
-
-//   // for (byte i = 0; i < 8 * 3; i++) {
-//   //   if (! (i % 3) ) {
-//   //     Serial.println();
-//   //   }
-
-//   //   Serial.print(matrixbuff[i], BIN);
-//   //   Serial.print(", ");
-
-    
-//   // }
-
-// }
 
 volatile byte readyToDump = 0;
 
-void RGBmatrixPanelDue::writeSection(uint8_t secn, uint8_t *buffptr) {
 
-  Serial.print("writeSection : ");
-  Serial.println(secn);
-  // Serial.flush();
-   //digitalWrite(OE, HIGH);
+#define IS_BIT_SET(var, pos) ((var) & (1<<(pos)))
+
+
+void RGBmatrixPanelDue::writeSectionNew(uint8_t secn, uint8_t *buffptr) {
+
+  // Serial.print("---- writeSection : ");
+  // Serial.print(secn);
+  // Serial.print(" :: ");
+  // SPrintZeroPadBin(secn);
+  // Serial.println();
+
+  // Serial.print("pwmcounter : ");
+  // Serial.println(pwmcounter);
+
   uint16_t portCstatus_nonclk = 0x0010; // CLK = low
   uint16_t portCstatus = 0x0010; // OE = HIGH
   uint16_t oeLow = 0x0020;
@@ -478,28 +140,28 @@ void RGBmatrixPanelDue::writeSection(uint8_t secn, uint8_t *buffptr) {
     
   // set A, B, C pins
   if (secn & 0x1){  // Apin
-    Serial.println("A PIN");
+    // Serial.println("A PIN");
     portCstatus |= 0x0002;
     portCstatus_nonclk |= 0x0002;
     oeLow |= 0x0002;
   }
 
   if (secn & 0x2){ // Bpin
-    Serial.println("B PIN");
+    // Serial.println("B PIN");
     portCstatus |= 0x0004;
     portCstatus_nonclk |= 0x0004;
     oeLow |= 0x0004;
   } 
   
   if (secn & 0x4){ // Cpin
-    Serial.println("C PIN");
+    // Serial.println("C PIN");
     portCstatus |= 0x0008;
     portCstatus_nonclk |= 0x0008;
     oeLow |= 0x0008;
   }
   
   if (secn & 0x8){ // Dpin
-    Serial.println("D PIN");
+    // Serial.println("D PIN");
     portCstatus |= 0x0080;
     portCstatus_nonclk |= 0x0080;
     oeLow |= 0x0080;
@@ -511,59 +173,90 @@ void RGBmatrixPanelDue::writeSection(uint8_t secn, uint8_t *buffptr) {
   REG_PIOC_ODSR = portCstatus; // set A, B, C pins
  
   uint8_t  low, high;
-  uint16_t out = 0x0000;
+  uint16_t out;
   
-  uint16_t i;
-  for (i = 0; i < single_matrix_width * NX * NY; i++) {
+  uint16_t rowWidth = single_matrix_width * NX * NY; // 256 with 4 panels
 
-   out = 0x0000;
+  uint16_t sBufferOffset = (secn < 8) ? 0 : (rowWidth);
+  // Which bit to look for?
+  uint8_t bit = (secn > 7) ? secn - 8 : secn;
+
+
+  uint8_t sBufferVal;
+  // Serial.print("Bit : ");
+  // Serial.println(bit);
+  // Serial.print("sBufferOffset : ");
+  // Serial.println(sBufferOffset);
+  // Serial.print("single_matrix_width * NX * NY = ");
+  // Serial.println(single_matrix_width * NX * NY); 
+  // single_matrix_width * NX * NY == 256
+
+  // uint16_t = 
+  for (uint16_t i = 0; i < rowWidth; i++) {
+
+    out = 0x0000;
+
+    if (secn < 8) {
+
+      if (i < 128) {
+        sBufferVal = sBuffer[i];
+        if (IS_BIT_SET(sBufferVal, bit)) {
+
+          out |= 0b0000010001000100; //0b0000010001000100; // Upper White
+        }
+
+        sBufferVal = sBuffer[i + rowWidth];
+        if (IS_BIT_SET(sBufferVal, bit)) {
+          out |= 0b0000001000001010;//0b0000001000001010;// Lower White
+        } 
+      }
+      else {
+        sBufferVal = sBuffer[i + 512 - 128];
+        if (IS_BIT_SET(sBufferVal, bit)) {
+          out |= 0b0000010001000100;//0b0000010001000100;// Upper White
+        } 
+
+        sBufferVal = sBuffer[i + 768 - 128];
+        if (IS_BIT_SET(sBufferVal, bit)) {
+          out |= 0b0000001000001010;//0b0000001000001010;// Lower White
+        }       
+
+      }
+    }
+    else {
+
+      if (i < 128) {
+        sBufferVal = sBuffer[i + 128];
+        if (IS_BIT_SET(sBufferVal, bit)) {
+
+          out |= 0b0000010001000100; //0b0000010001000100; // Upper White
+        }
+
+        sBufferVal = sBuffer[i + rowWidth + 128];
+        if (IS_BIT_SET(sBufferVal, bit)) {
+          out |= 0b0000001000001010;//0b0000001000001010;// Lower White
+        } 
+      }
+      else {
+        sBufferVal = sBuffer[i + 512];
+        if (IS_BIT_SET(sBufferVal, bit)) {
+          out |= 0b0000010001000100;//0b0000010001000100;// Upper White
+        } 
+
+        sBufferVal = sBuffer[i + 768];
+        if (IS_BIT_SET(sBufferVal, bit)) {
+          out |= 0b0000001000001010;//0b0000001000001010;// Lower White
+        }       
+
+      }
+    }
    
-    // red
-   low = *buffptr++;
-   high = low >> 4;
-   low &= 0x0F;
-   if (low > pwmcounter) out |= 0x0200; // R2, pin 30, PD9
-   if (high > pwmcounter) out |= 0x0400; // R1, pin 32, PD10
+    REG_PIOC_ODSR = portCstatus_nonclk; // set clock to low, OE, A, B, C stay the same
+    REG_PIOD_ODSR = out;
 
-   // green
-   low = *buffptr++;
-   high = low >> 4;
-   low &= 0x0F;
-   if (low > pwmcounter) out |= 0x0008; // G2, pin 28, PD3
-   if (high > pwmcounter) out |= 0x0040; // G1, pin 29, PD6
 
-   // blue
-   low = *buffptr++;
-   high = low >> 4;
-   low &= 0x0F;
-   if (low > pwmcounter) out |= 0x0002; // B2, pin 26, PD1
-   if (high > pwmcounter) out |= 0x0004; // B1, pin 27, PD2
-   
-
-   // if (secn == 0) {
-    secBuffer[i] = out;
-   // }
-    
-   //digitalWrite(CLK, LOW);
-   REG_PIOC_ODSR = portCstatus_nonclk; // set clock to low, OE, A, B, C stay the same
-   REG_PIOD_ODSR = out;
-   //                ....----....----
-   // REG_PIOC_ODSR = 0b0000010001000100;
-   // REG_PIOC_ODSR = 65535;
-   
-   //  ....----....----
-   //0b0000001000001010
-
-   // REG_PIOD_ODSR = 0b0000001000100010;
-   // REG_PIOD_ODSR = 0b0100010001000100;
-   // REG_PIOD_ODSR = 0b0000010001000100;
-   // REG_PIOD_ODSR = 0b0000000001000100;
-   // REG_PIOD_ODSR = 0b0000 0010 0000 0000;
-   // REG_PIOD_ODSR = 0b0000000001000100;
-   // REG_PIOD_ODSR = 0b0010001000100100;
-
-   //digitalWrite(CLK, HIGH);
-   REG_PIOC_ODSR = portCstatus; // set clock to high, OE, A, B, C stay the same
+    //digitalWrite(CLK, HIGH);
+    REG_PIOC_ODSR = portCstatus; // set clock to high, OE, A, B, C stay the same
    
   } 
 
@@ -581,20 +274,7 @@ void RGBmatrixPanelDue::writeSection(uint8_t secn, uint8_t *buffptr) {
   readyToDump = 1;
 }
 
-#define ZERO_PADDING 16
-void SPrintZeroPadBin(uint16_t number) {
-  char binstr[]="0000000000000000";
-  uint8_t i=0;
-  uint16_t n=number;
 
-  while(n>0 && i<ZERO_PADDING){
-    binstr[ZERO_PADDING-1-i]=n%2+'0';
-    ++i;
-    n/=2;
-  }
-
- Serial.print(binstr);
-}
 
 void RGBmatrixPanelDue::dumpMatrix(void) {
   if (readyToDump == 0) {
@@ -606,27 +286,21 @@ void RGBmatrixPanelDue::dumpMatrix(void) {
 
   byte row = scansection,
        col = 0;
-  // Serial.print("numSecBufferBytes = "); Serial.println( numSecBufferBytes);
-  for (int i = 0; i < numSecBufferBytes; i++) {
-    if (col >= (single_matrix_width * NX) / 2) {
-      col = 0;
-      row = scanSec == 0 ? 15 : scanSec * 2;
-    }
+  Serial.print("numSecBufferBytes = "); Serial.println( numSecBufferBytes);
+  for (int i = 0; i < numSecBufferBytes * .1; i++) {
+    
 
-    if (secBuffer[i] > 0) {
+    // if (sBuffer[i] > 0) {
       Serial.print("[");
-      Serial.print(row - 1);
-      Serial.print(", ");
-      Serial.print(col);
-      Serial.print("]");
-      Serial.print(secBuffer[i]);
-      Serial.print(" ");
+      Serial.print(i);
 
-      SPrintZeroPadBin(secBuffer[i]);
-      // Serial.print(secBuffer[i], BIN);
+      Serial.print("]");
+      Serial.print(sBuffer[i]);
+      // Serial.print(" ");
+      // SPrintZeroPadBin(sBuffer[i]);
+      // Serial.print(sBuffer[i], BIN);
       Serial.print(", ");
-    }
-    col++;
+    // }
 
   }
   Serial.println();
@@ -637,7 +311,7 @@ void RGBmatrixPanelDue::dumpMatrix(void) {
 }
 
 uint8_t * RGBmatrixPanelDue::getBuffer() {
-  return matrixbuff;
+  return sBuffer;
 }
 
 void  RGBmatrixPanelDue::updateDisplay(void) {
@@ -645,7 +319,7 @@ void  RGBmatrixPanelDue::updateDisplay(void) {
   // Serial.println(pwmcounter);
   // Serial.println(PWMBITS * single_matrix_width * NX * NY * scansection);
 
-  writeSection(scansection, matrixbuff + (PWMBITS * single_matrix_width * NX * NY * scansection));  
+  writeSectionNew(scansection, matrixbuff + (PWMBITS * single_matrix_width * NX * NY * scansection));  
   scansection++;
   // Serial.print("updateDisplay() ");
   // Serial.println(scansection);

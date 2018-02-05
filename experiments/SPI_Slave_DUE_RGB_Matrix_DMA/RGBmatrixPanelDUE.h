@@ -17,6 +17,23 @@
 #define MATRIX_32_32 1
 
 // fixed pin structure for now
+//#define G1    23
+//#define G2    27
+//#define BPIN  31
+//#define DPIN  33 // 32x32 Matrix only
+//#define LAT   35
+//
+//
+//#define R1    22
+//#define B1    24
+//#define R2    26
+//#define B2    28
+//#define APIN  30
+//#define CPIN  32
+//#define CLK   34
+//#define OE    36
+
+
 #define APIN  33
 #define BPIN  34
 #define CPIN  35
@@ -31,7 +48,6 @@
 #define G2    28
 #define B2    26
 
-
 #define swap(a, b) { uint16_t t = a; a = b; b = t; }
 
 class RGBmatrixPanelDue {
@@ -39,14 +55,11 @@ class RGBmatrixPanelDue {
   RGBmatrixPanelDue(uint8_t matrix_type, uint8_t xpanels, uint8_t ypanels, uint8_t planes);
   RGBmatrixPanelDue(uint8_t xpanels, uint8_t ypanels, uint8_t planes);
   void init(uint8_t xpanels, uint8_t ypanels, uint8_t planes);
-  void initNew(uint8_t xpanels, uint8_t ypanels, uint8_t planes);
   void begin(uint32_t freq);
   uint16_t Color333(uint8_t r, uint8_t g, uint8_t b);
   uint16_t Color444(uint8_t r, uint8_t g, uint8_t b);
   uint16_t Color888(uint8_t r, uint8_t g, uint8_t b);
   void drawPixel(uint8_t x, uint8_t y, uint16_t c);
-  void drawPixelNew(uint8_t x, uint8_t y, uint16_t c);
-
   void drawLine(int8_t x0, int8_t y0, int8_t x1, int8_t y1, uint16_t c);
   void drawRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t color); 
   void fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t color);
@@ -64,23 +77,21 @@ class RGBmatrixPanelDue {
   void updateDisplay();
   void dumpMatrix(void);
 
-  uint16_t width();
-  uint16_t height();
+  uint8_t width();
+  uint8_t height();
   void startTimer(Tc *tc, uint32_t ch, IRQn_Type IRQ, uint32_t freq);
 
   uint8_t NX, NY, PWMMAX, PWMBITS;
-  uint8_t * getBuffer();
-  uint8_t *matrixbuff;
-  uint32_t NUMBYTES;
-  void getOut(uint8_t secn, uint8_t *buffptr);
 
  private:
 
   uint8_t single_matrix_width, single_matrix_height;
   uint8_t sections;
-  uint16_t WIDTH, HEIGHT;//, PWMMAX, PWMBITS;
+  uint8_t WIDTH, HEIGHT;//, PWMMAX, PWMBITS;
+  uint32_t NUMBYTES;
 
   //uint8_t matrixbuff[NUMBYTES];  // 768 bytes for 16x32
+  uint8_t *matrixbuff;
   //uint8_t matrixbuff[768];
 
   uint8_t cursor_x, cursor_y, textsize;
@@ -91,7 +102,6 @@ class RGBmatrixPanelDue {
   volatile uint8_t scansection;
 
   void writeSection(uint8_t section, uint8_t *buffptr);
-  void writeSectionNew(uint8_t section, uint8_t *buffptr);
 
   //void TC3_Handler();
 

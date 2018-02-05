@@ -39,14 +39,11 @@ class RGBmatrixPanelDue {
   RGBmatrixPanelDue(uint8_t matrix_type, uint8_t xpanels, uint8_t ypanels, uint8_t planes);
   RGBmatrixPanelDue(uint8_t xpanels, uint8_t ypanels, uint8_t planes);
   void init(uint8_t xpanels, uint8_t ypanels, uint8_t planes);
-  void initNew(uint8_t xpanels, uint8_t ypanels, uint8_t planes);
   void begin(uint32_t freq);
   uint16_t Color333(uint8_t r, uint8_t g, uint8_t b);
   uint16_t Color444(uint8_t r, uint8_t g, uint8_t b);
   uint16_t Color888(uint8_t r, uint8_t g, uint8_t b);
   void drawPixel(uint8_t x, uint8_t y, uint16_t c);
-  void drawPixelNew(uint8_t x, uint8_t y, uint16_t c);
-
   void drawLine(int8_t x0, int8_t y0, int8_t x1, int8_t y1, uint16_t c);
   void drawRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t color); 
   void fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t color);
@@ -91,7 +88,6 @@ class RGBmatrixPanelDue {
   volatile uint8_t scansection;
 
   void writeSection(uint8_t section, uint8_t *buffptr);
-  void writeSectionNew(uint8_t section, uint8_t *buffptr);
 
   //void TC3_Handler();
 
